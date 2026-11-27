@@ -1,0 +1,6 @@
+[
+  { "name": "1-play-cover.jpg", "query": "?shot=play-cover&seed=1740" },
+  { "name": "2-cockpit-storm.jpg", "query": "?shot=cockpit-storm&seed=1740" },
+  { "name": "3-hangar-refit.jpg", "query": "?shot=hangar-refit&seed=1740" },
+  { "name": "4-debrief-logbook.jpg", "query": "?shot=debrief-logbook&seed=1740" }
+]
