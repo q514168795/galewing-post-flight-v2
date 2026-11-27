@@ -13,6 +13,7 @@ import { loadLogbookSlots, saveLogbookSlot } from './save.js';
 import { createFlightAudio } from './audio.js';
 import { createInputController } from './input.js';
 import { createWebGL2Renderer } from './webgl2.js';
+import { renderDebrief2D, renderHangar2D, renderWorld2D } from './fallback2d.js';
 import { renderFlightHud } from './hud.js';
 import { renderDebriefScreen, renderHangarScreen, renderTitleScreen } from './screens.js';
 import { runDeterministicShot } from './shots.js';
@@ -21,7 +22,13 @@ const frameEl = document.getElementById('frame');
 const glCanvas = document.getElementById('gl-stage');
 const canvas = document.getElementById('stage');
 const ctx = canvas.getContext('2d');
-const webgl = glCanvas ? createWebGL2Renderer(glCanvas) : null;
+let webgl = glCanvas ? createWebGL2Renderer(glCanvas) : null;
+if (glCanvas) {
+  glCanvas.addEventListener('webglcontextlost', (ev) => {
+    ev.preventDefault();
+    webgl = null;
+  });
+}
 const audio = createFlightAudio();
 
 const params = new URLSearchParams(window.location.search);
@@ -80,10 +87,14 @@ function createRenderer(input) {
     ctx.clearRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
     if (targetState.screen === 'title' || targetState.screen === 'play') {
       if (webgl) {
-        webgl.renderWorldWebGL(targetState, BASE_WIDTH, BASE_HEIGHT);
+        try {
+          webgl.renderWorldWebGL(targetState, BASE_WIDTH, BASE_HEIGHT);
+        } catch {
+          webgl = null;
+          renderWorld2D(ctx, targetState, BASE_WIDTH, BASE_HEIGHT);
+        }
       } else {
-        ctx.fillStyle = '#102230';
-        ctx.fillRect(0, 0, BASE_WIDTH, BASE_HEIGHT);
+        renderWorld2D(ctx, targetState, BASE_WIDTH, BASE_HEIGHT);
       }
       if (targetState.screen === 'play') {
         renderFlightHud(ctx, targetState, BASE_WIDTH, BASE_HEIGHT);
@@ -91,11 +102,28 @@ function createRenderer(input) {
         renderTitleScreen(ctx, targetState, input, BASE_WIDTH, BASE_HEIGHT);
       }
     } else if (targetState.screen === 'hangar') {
-      const anchor = webgl ? webgl.renderHangarWebGL(targetState, BASE_WIDTH, BASE_HEIGHT) : null;
+      let anchor = null;
+      if (webgl) {
+        try {
+          anchor = webgl.renderHangarWebGL(targetState, BASE_WIDTH, BASE_HEIGHT);
+        } catch {
+          webgl = null;
+          anchor = renderHangar2D(ctx, targetState, BASE_WIDTH, BASE_HEIGHT);
+        }
+      } else {
+        anchor = renderHangar2D(ctx, targetState, BASE_WIDTH, BASE_HEIGHT);
+      }
       renderHangarScreen(ctx, targetState, input, BASE_WIDTH, BASE_HEIGHT, anchor);
     } else if (targetState.screen === 'debrief') {
       if (webgl) {
-        webgl.renderDebriefWebGL(targetState, BASE_WIDTH, BASE_HEIGHT);
+        try {
+          webgl.renderDebriefWebGL(targetState, BASE_WIDTH, BASE_HEIGHT);
+        } catch {
+          webgl = null;
+          renderDebrief2D(ctx, targetState, BASE_WIDTH, BASE_HEIGHT);
+        }
+      } else {
+        renderDebrief2D(ctx, targetState, BASE_WIDTH, BASE_HEIGHT);
       }
       renderDebriefScreen(ctx, targetState, input, BASE_WIDTH, BASE_HEIGHT);
     }

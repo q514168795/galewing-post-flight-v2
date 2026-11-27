@@ -177,20 +177,35 @@ function sunDirFromPreset(preset) {
 }
 
 export function createWebGL2Renderer(glCanvas) {
-  const gl = glCanvas.getContext('webgl2', {
-    antialias: true,
-    alpha: false,
-    depth: true,
-    preserveDrawingBuffer: true,
-    powerPreference: 'high-performance',
-  });
-  if (!gl) return null;
+  let gl = null;
+  try {
+    gl = glCanvas.getContext('webgl2', {
+      antialias: true,
+      alpha: false,
+      depth: true,
+      preserveDrawingBuffer: true,
+      powerPreference: 'high-performance',
+    }) || glCanvas.getContext('webgl2', {
+      antialias: false,
+      alpha: false,
+      depth: true,
+      preserveDrawingBuffer: true,
+    });
+  } catch {
+    return null;
+  }
+  if (!gl || gl.isContextLost()) return null;
 
-  const skyProg = compileProgram(gl, SKY_VS, SKY_FS);
-  const shadowProg = compileProgram(gl, SHADOW_VS, SHADOW_FS);
-  const oceanProg = compileProgram(gl, OCEAN_VS, OCEAN_FS);
-  const worldProg = compileProgram(gl, WORLD_VS, WORLD_FS);
-  const fxProg = compileProgram(gl, FX_VS, FX_FS);
+  let skyProg, shadowProg, oceanProg, worldProg, fxProg;
+  try {
+    skyProg = compileProgram(gl, SKY_VS, SKY_FS);
+    shadowProg = compileProgram(gl, SHADOW_VS, SHADOW_FS);
+    oceanProg = compileProgram(gl, OCEAN_VS, OCEAN_FS);
+    worldProg = compileProgram(gl, WORLD_VS, WORLD_FS);
+    fxProg = compileProgram(gl, FX_VS, FX_FS);
+  } catch {
+    return null;
+  }
 
   // Empty VAO for fullscreen sky triangle
   const emptyVao = gl.createVertexArray();
@@ -219,6 +234,10 @@ export function createWebGL2Renderer(glCanvas) {
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, shadowTex, 0);
   gl.drawBuffers([gl.NONE]);
   gl.readBuffer(gl.NONE);
+  if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return null;
+  }
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   // Shared procedural meshes
